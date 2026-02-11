@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QA Data Generator - Datos de Prueba Validados</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        /* Toast Notification Styles */
+        .toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 4px; padding: 16px; position: fixed; z-index: 50; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 17px; opacity: 0; transition: opacity 0.5s, bottom 0.5s; }
+        .toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+        /* Animación suave para el cambio de valor */
+        .value-transition { transition: opacity 0.2s ease-in-out; }
+    </style>
+</head>
+<body class="text-gray-800 flex flex-col min-h-screen">
+
+    <header class="bg-indigo-600 text-white p-6 shadow-lg sticky top-0 z-40">
+        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold"><i class="fa-solid fa-vial-circle-check mr-2"></i>QA Data Generator</h1>
+                <p class="text-indigo-200 text-sm mt-1">Generador de datos validados con emails Yopmail</p>
+            </div>
+            <button onclick="generateAll()" class="bg-white text-indigo-600 font-bold py-2 px-6 rounded-full shadow hover:bg-indigo-50 transition duration-300 transform active:scale-95 whitespace-nowrap">
+                <i class="fa-solid fa-arrows-rotate mr-2"></i> Regenerar Todo
+            </button>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-6 flex-grow">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="cards-container">
+            </div>
+    </main>
+
+    <footer class="bg-gray-100 text-center p-6 text-gray-500 text-sm mt-8 border-t border-gray-200">
+        <p>Cumple validaciones de DNI (Mod 23), NIE e IBAN ES (Mod 97).</p>
+        <p class="mt-2 text-xs">Usa el botón <i class="fa-solid fa-rotate fa-xs"></i> para regenerar solo ese campo específico.</p>
+    </footer>
+
+    <div id="toast" class="toast"><i class="fa-solid fa-check mr-2"></i>Copiado al portapapeles</div>
+
+    <script>
+        // --- DATA POOLS ---
+        const names = ["Ana", "Luis", "Mar", "Jon", "Eva", "Pau", "Leo", "Mia", "Ian", "Zoe", "Sara", "Iker", "Lara", "Hugo", "Nora", "Marc", "Lia", "Eric", "Noa", "Pol"]; 
+        const lastNames = ["García", "Rodríguez", "González", "Fernández", "López", "Martínez", "Sánchez", "Pérez", "Gómez", "Martín", "Ruiz", "Hernández", "Jiménez", "Díaz", "Moreno", "Muñoz", "Álvarez"];
+        const streets = ["Calle Mayor", "Av. de la Constitución", "Plaza España", "Calle Gran Vía", "Paseo de la Castellana", "Calle Real", "Av. Diagonal", "Calle Alcala"];
+        const cities = [
+            { name: "Madrid", prov: "Madrid", cp: "28001" },
+            { name: "Barcelona", prov: "Barcelona", cp: "08001" },
+            { name: "Valencia", prov: "Valencia", cp: "46001" },
+            { name: "Sevilla", prov: "Sevilla", cp: "41001" },
+            { name: "Bilbao", prov: "Vizcaya", cp: "48001" }
+        ];
+
+        // --- HELPER FUNCTIONS ---
+        const randomEl = (arr) => arr[Math.floor(Math.random() * arr.length)];
+        const randomNumber = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+        
+        const formatDate = (date, format) => {
+            const d = date.getDate().toString().padStart(2, '0');
+            const m = (date.getMonth() + 1).toString().padStart(2, '0');
+            const y = date.getFullYear();
+            if (format === 'dd/mm/aaaa') return `${d}/${m}/${y}`;
+            if (format === 'mm/dd/aaaa') return `${m}/${d}/${y}`;
+            if (format === 'iso') return date.toISOString().replace('Z', '+0000');
+            return date.toISOString();
+        };
+
+        const generateDocument = () => {
+            const type = randomEl(['NIF', 'NIE', 'PASAPORTE']);
+            let number = '';
+            const letters = "TRWAGMYFPDXBNJZSQVHLCKE";
+
+            if (type === 'NIF') {
+                const nums = randomNumber(10000000, 99999999);
+                number = `${nums}${letters[nums % 23]}`;
+            } else if (type === 'NIE') {
+                const initial = randomEl(['X', 'Y', 'Z']);
+                const nums = randomNumber(1000000, 9999999);
+                const prefix = initial === 'Y' ? 1 : (initial === 'Z' ? 2 : 0);
+                number = `${initial}${nums}${letters[parseInt(`${prefix}${nums}`) % 23]}`;
+            } else {
+                const l3 = String.fromCharCode(65+randomNumber(0,25)) + String.fromCharCode(65+randomNumber(0,25)) + String.fromCharCode(65+randomNumber(0,25));
+                number = `${l3}${randomNumber(100000, 999999)}`;
+            }
+            return { type, number };
+        };
+
+        const generateIBAN = () => {
+            const ccc = randomNumber(1000, 9999).toString() + randomNumber(1000, 9999).toString() + randomNumber(10, 99).toString() + randomNumber(1000000000, 9999999999).toString();
+            const bigNum = BigInt(ccc + "142800");
+            const checkDigits = (98n - (bigNum % 97n)).toString().padStart(2, '0');
+            return `ES${checkDigits}${ccc}`;
+        };
+
+        const generatePassword = () => {
+            const chars = "abcdefghijklmnopqrstuvwxyz";
+            const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const nums = "0123456789";
+            const syms = "!@#$%^&*";
+            let pwd = randomEl(chars) + randomEl(upper) + randomEl(nums) + randomEl(syms);
+            const all = chars + upper + nums + syms;
+            for(let i=0; i<4; i++) pwd += randomEl(all);
+            return pwd.split('').sort(() => 0.5 - Math.random()).join('');
+        };
+
+        // Helper isolated generators for single field regeneration
+        const genIsoDOB = () => new Date(new Date().getFullYear() - randomNumber(18, 80), randomNumber(0, 11), randomNumber(1, 28));
+        const genIsoCity = () => randomEl(cities);
+
+        // --- SINGLE FIELD GENERATORS MAP ---
+        // Las claves aquí no tienen acentos para evitar errores de codificación
+        const singleGenerators = {
+            "nombre": () => randomEl(names),
+            "primer-apellido": () => randomEl(lastNames),
+            "segundo-apellido": () => randomEl(lastNames),
+            "sexo": () => randomEl(["Hombre", "Mujer"]),
+            "fecha-de-nacimiento": () => formatDate(genIsoDOB(), 'dd/mm/aaaa'),
+            "tipo-de-documento": () => generateDocument().type,
+            "numero-de-documento": () => generateDocument().number, 
+            "tipo-de-via": () => "Calle",
+            "direccion": () => randomEl(streets) + " " + randomNumber(1, 150),
+            "codigo-postal": () => genIsoCity().cp,
+            "localidad": () => genIsoCity().name,
+            "provincia": () => genIsoCity().prov,
+            // MODIFICADO: Generación individual usa yopmail
+            "e-mail": () => `qa.user.${randomNumber(1000,9999)}@yopmail.com`,
+            "telefono": () => "91" + randomNumber(1000000, 9999999),
+            "movil": () => "6" + randomNumber(0, 9) + randomNumber(1000000, 9999999),
+            "fecha-politica-priv": () => formatDate(new Date(), 'dd/mm/aaaa'),
+            "acepta-politica-priv": () => randomEl(["Si", "No"]),
+            "acepta-envio-coms": () => randomEl(["Si", "No"]),
+            "fecha-aceptacion-envio": () => formatDate(new Date(), 'mm/dd/aaaa'),
+            "numero-de-socio": () => randomNumber(100000000, 999999999),
+            "iban": () => generateIBAN(),
+            "periodicidad": () => randomEl(["SOC-SEMES", "SOC-MENS", "SOC-TRIMES", "SOC-ANUAL"]),
+            "cuota": () => randomNumber(10, 180),
+            "fecha-lote": () => formatDate(new Date(), 'iso'),
+            "idioma": () => randomEl(["CASTELLANO", "CATALAN", "GALLEGO", "EUSKERA"]),
+            "fecha-de-alta": () => formatDate(new Date(), 'mm/dd/aaaa'),
+            "contrasena": () => generatePassword(),
+        };
+
+        // --- MAIN LOGIC ---
+
+        function regenerateSingle(slug) {
+            const generator = singleGenerators[slug];
+            if (!generator) {
+                console.error("No generator found for slug:", slug);
+                alert("Error: No se encuentra generador para " + slug);
+                return;
+            }
+
+            const newValue = generator();
+
+            const valContainer = document.getElementById(`val-${slug}`);
+            const copyBtn = document.getElementById(`btn-copy-${slug}`);
+            const regenBtn = document.getElementById(`btn-regen-${slug}`);
+
+            regenBtn.classList.add('fa-spin');
+            valContainer.style.opacity = '0';
+            
+            setTimeout(() => {
+                valContainer.innerText = newValue;
+                valContainer.style.opacity = '1';
+                regenBtn.classList.remove('fa-spin');
+                copyBtn.setAttribute('onclick', `copyToClipboard('${newValue}')`);
+            }, 250);
+        }
+
+        function generateAll() {
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+
+            const cityData = genIsoCity();
+            const docData = generateDocument();
+            const dob = genIsoDOB();
+            const today = new Date();
+            
+            const fields = [
+                { label: "Nombre", val: randomEl(names), req: "Max 10 chars" },
+                { label: "Primer apellido", val: randomEl(lastNames), req: "Max 25 chars" },
+                { label: "Segundo apellido", val: randomEl(lastNames), req: "Max 25 chars" },
+                { label: "Sexo", val: randomEl(["Hombre", "Mujer"]), req: "Select" },
+                { label: "Fecha de nacimiento", val: formatDate(dob, 'dd/mm/aaaa'), req: "> 18 años" },
+                { label: "Tipo de documento", val: docData.type, req: "NIF/NIE/PAS" },
+                { label: "Número de documento", val: docData.number, req: "Algoritmo válido" },
+                { label: "Tipo de vía", val: "Calle", req: "" },
+                { label: "Dirección", val: randomEl(streets) + " " + randomNumber(1, 150), req: "" },
+                { label: "Código postal", val: cityData.cp, req: "Relativo a prov" },
+                { label: "Localidad", val: cityData.name, req: "" },
+                { label: "Provincia", val: cityData.prov, req: "" },
+                // MODIFICADO: Generación masiva usa yopmail
+                { label: "E-mail", val: `qa.user.${randomNumber(1000,9999)}@yopmail.com`, req: "@yopmail.com" },
+                { label: "Teléfono", val: "91" + randomNumber(1000000, 9999999), req: "Fijo" },
+                { label: "Móvil", val: "6" + randomNumber(0, 9) + randomNumber(1000000, 9999999), req: "Móvil ES" },
+                { label: "Fecha política priv.", val: formatDate(today, 'dd/mm/aaaa'), req: "dd/mm/aaaa" },
+                { label: "Acepta política priv.", val: randomEl(["Si", "No"]), req: "Bool" },
+                { label: "Acepta envio coms.", val: randomEl(["Si", "No"]), req: "Bool" },
+                { label: "Fecha aceptación envío", val: formatDate(today, 'mm/dd/aaaa'), req: "mm/dd/aaaa (US)" },
+                { label: "Número de Socio", val: randomNumber(100000000, 999999999), req: "9 chars" },
+                { label: "Iban", val: generateIBAN(), req: "ES.. (Mod 97)" },
+                { label: "Periodicidad", val: randomEl(["SOC-SEMES", "SOC-MENS", "SOC-TRIMES", "SOC-ANUAL"]), req: "Enum" },
+                { label: "Cuota", val: randomNumber(10, 180), req: "10-180" },
+                { label: "Fecha Lote", val: formatDate(today, 'iso'), req: "ISO 8601" },
+                { label: "Idioma", val: randomEl(["CASTELLANO", "CATALAN", "GALLEGO", "EUSKERA"]), req: "Enum" },
+                { label: "Fecha de alta", val: formatDate(today, 'mm/dd/aaaa'), req: "mm/dd/aaaa" },
+                { label: "Contraseña", val: generatePassword(), req: "8 chars, A1!a" },
+            ];
+
+            fields.forEach(field => {
+                // Normalización de SLUG para que funcionen los acentos y la ñ
+                const slug = field.label.toLowerCase()
+                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
+                    .replace("ñ", "n") 
+                    .replace(/\s+/g, '-')
+                    .replace(/\./g, '');
+                
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-lg shadow border border-gray-200 card-hover flex flex-col justify-between transition duration-300";
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-xs font-semibold text-indigo-500 uppercase tracking-wide">${field.label}</span>
+                            <span class="text-[10px] text-gray-400 bg-gray-100 px-1 rounded truncate ml-2">${field.req}</span>
+                        </div>
+                        <div class="text-lg font-mono text-gray-800 break-all value-transition" id="val-${slug}">${field.val}</div>
+                    </div>
+                    
+                    <div class="mt-3 flex gap-2">
+                        <button id="btn-copy-${slug}" onclick="copyToClipboard('${field.val}')" class="flex-grow bg-gray-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold py-2 px-2 rounded border border-gray-200 transition duration-200 flex items-center justify-center gap-2 group">
+                            <i class="fa-regular fa-copy group-hover:scale-110 transition-transform"></i> Copiar
+                        </button>
+                        
+                        <button onclick="regenerateSingle('${slug}')" class="bg-gray-50 hover:bg-indigo-100 text-indigo-600 p-2 rounded border border-gray-200 transition duration-200 flex items-center justify-center group text-xs" title="Regenerar solo este campo">
+                            <i id="btn-regen-${slug}" class="fa-solid fa-rotate transition-transform group-hover:rotate-180"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // --- UTILS ---
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.getElementById("toast");
+                toast.className = "toast show";
+                setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+            }, (err) => console.error('Error al copiar: ', err));
+        }
+
+        window.onload = generateAll;
+    </script>
+</body>
+</html>
